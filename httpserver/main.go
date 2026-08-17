@@ -469,15 +469,21 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Basic Auth
+	dirParam := r.URL.Query().Get("dir")
+	path := r.URL.Path
+
+	// OPDS routes bypass authentication (paywall removed)
+	if opdsEnabled && (path == "/opds" || path == "/opds/" || strings.HasPrefix(path, "/opds/")) {
+		opdsHandler(w, r)
+		return
+	}
+
+	// Basic Auth for all other routes
 	if !authenticate(r) {
 		w.Header().Set("WWW-Authenticate", `Basic realm="Secure File Server"`)
 		writePlain(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
-
-	dirParam := r.URL.Query().Get("dir")
-	path := r.URL.Path
 
 	switch {
 	case r.Method == http.MethodPost && path == "/upload":
@@ -488,8 +494,6 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		handleDelete(w, r, dirParam)
 	case r.Method == http.MethodGet && path == "/list":
 		handleList(w, r, dirParam)
-	case opdsEnabled && (path == "/opds" || path == "/opds/" || strings.HasPrefix(path, "/opds/")):
-		opdsHandler(w, r)
 	default:
 		writePlain(w, http.StatusNotFound, "Not Found")
 	}
